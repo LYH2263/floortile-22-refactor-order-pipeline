@@ -1,33 +1,45 @@
-"""Floor tile order count: area method + optional grid layout preview."""
+"""Piece-count chain: area method -> waste allowance -> optional whole-box rounding.
+
+Each stage is a pure function that can be called on its own; the estimate
+service chains them and attaches the grid layout preview.
+"""
 
 from app.engines.helpers import ceil_units
 
 
-def tile_count(
-    room_l: float,
-    room_w: float,
-    tile_l: float,
-    tile_w: float,
-    waste_pct: float,
-) -> dict:
-    """
-    raw_count: ceil(room_area / tile_piece_area)
-    order_count: ceil(raw * (1 + waste_pct/100))
-    """
+def raw_count_by_area(room_l: float, room_w: float, tile_l: float, tile_w: float) -> dict:
+    """Stage 1 — area method: net piece count from room and tile areas."""
     area = float(room_l) * float(room_w)
     piece = float(tile_l) * float(tile_w)
     if piece <= 0 or area < 0:
         raise ValueError("invalid dimensions")
-    raw = ceil_units(area / piece)
-    with_waste = ceil_units(raw * (1 + float(waste_pct) / 100.0))
-    layout = layout_preview(room_l, room_w, tile_l, tile_w)
     return {
         "area_m2": round(area, 3),
         "piece_m2": round(piece, 4),
-        "raw_count": raw,
-        "waste_pct": float(waste_pct),
-        "order_count": with_waste,
-        "layout": layout,
+        "raw_count": ceil_units(area / piece),
+    }
+
+
+def order_count_with_waste(raw_count: int, waste_pct: float) -> dict:
+    """Stage 2 — waste allowance on top of the net count."""
+    if raw_count < 0:
+        raise ValueError("invalid raw count")
+    waste = float(waste_pct)
+    return {
+        "waste_pct": waste,
+        "order_count": ceil_units(int(raw_count) * (1 + waste / 100.0)),
+    }
+
+
+def round_to_full_boxes(count: int, pieces_per_box: int) -> dict:
+    """Stage 3 — optional: round a piece count up to whole boxes."""
+    if pieces_per_box <= 0:
+        raise ValueError("invalid box size")
+    boxes = ceil_units(int(count) / int(pieces_per_box))
+    return {
+        "pieces_per_box": int(pieces_per_box),
+        "box_count": boxes,
+        "box_rounded_count": boxes * int(pieces_per_box),
     }
 
 

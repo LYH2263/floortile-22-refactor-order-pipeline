@@ -7,6 +7,7 @@ class EstimateRequest(BaseModel):
     waste_pct: float | None = None
     save: bool = False
     note: str = ""
+    pieces_per_box: int | None = None
 
 
 class EstimateResponse(BaseModel):
